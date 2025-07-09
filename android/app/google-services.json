@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "597360007405",
+    "project_id": "flare-chat-26bea",
+    "storage_bucket": "flare-chat-26bea.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:597360007405:android:dd380a70f40b79907554e4",
+        "android_client_info": {
+          "package_name": "com.example.flare_chat"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAB7NRFa65PvdPKl71MzhNO-MBZzaOw0js"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
