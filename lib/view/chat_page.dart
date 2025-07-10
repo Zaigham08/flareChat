@@ -1,9 +1,11 @@
 import 'package:flare_chat/res/constants.dart';
 import 'package:flare_chat/res/widgets/input%20field%20components/my_text_input_field.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
 import '../models/message_model.dart';
 import '../res/widgets/general widgets/my_text.dart';
+import '../utils/utils.dart';
 import '../view_models/controllers/chat_controller.dart';
 
 class ChatPage extends StatefulWidget {
@@ -21,19 +23,50 @@ class ChatPage extends StatefulWidget {
 }
 
 class _ChatPageState extends State<ChatPage> {
-  final _chatController = ChatController();
+  final _chatController = Get.put(ChatController());
   final _msgController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _chatController.markMessagesAsSeen(widget.otherUserId);
+    _chatController.listenToTypingStatus(widget.otherUserId);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: MyText(widget.otherUserName, color: whiteColor)),
+      appBar: AppBar(
+        title: MyText(widget.otherUserName, color: whiteColor),
+        actions: [
+          Obx(() {
+            return _chatController.msgSelectionMode.value
+                ? IconButton(
+                  icon: const Icon(
+                    Icons.delete_forever_outlined,
+                    color: whiteColor,
+                  ),
+                  onPressed: () {
+                    final selectedMsgLength =
+                        _chatController.selectedMessageIds.length;
+                    Utils.showConfirmationDialog(
+                      title: "Are you sure?",
+                      text:
+                          selectedMsgLength == 1
+                              ? "Delete this message?"
+                              : "Delete $selectedMsgLength messages?",
+                      btnText: "Delete",
+                      onTap: () async {
+                        await _chatController.deleteMessages(
+                          widget.otherUserId,
+                        );
+                      },
+                    );
+                  },
+                )
+                : SizedBox.shrink();
+          }),
+        ],
+      ),
       body: Column(
         children: [
           Expanded(
@@ -47,6 +80,10 @@ class _ChatPageState extends State<ChatPage> {
                 }
                 final messages = snapshot.data!;
 
+                Future.delayed(Duration(milliseconds: 500), () {
+                  _chatController.markMessagesAsSeen(widget.otherUserId);
+                });
+
                 return ListView.builder(
                   reverse: true,
                   itemCount: messages.length,
@@ -54,16 +91,23 @@ class _ChatPageState extends State<ChatPage> {
                     final msg = messages[index];
                     final isMe = msg.senderId == _chatController.currentUserId;
 
-                    return Align(
-                      alignment:
-                          isMe ? Alignment.centerRight : Alignment.centerLeft,
-                      child: ChatWidget(isMe: isMe, msg: msg),
+                    return ChatWidget(
+                      isMe: isMe,
+                      msg: msg,
+                      chatController: _chatController,
                     );
                   },
                 );
               },
             ),
           ),
+          Obx(() {
+            if (_chatController.isOtherTyping.value) {
+              return TypingWidget();
+            } else {
+              return SizedBox.shrink();
+            }
+          }),
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Row(
@@ -78,7 +122,6 @@ class _ChatPageState extends State<ChatPage> {
                       if (text.isNotEmpty) {
                         _chatController.sendMessage(text, widget.otherUserId);
                         _msgController.clear();
-                        _chatController.markMessagesAsSeen(widget.otherUserId);
                       }
                     },
                     onChanged: (value) {
@@ -90,13 +133,12 @@ class _ChatPageState extends State<ChatPage> {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.send, color: btnColor, size: 28),
+                  icon: const Icon(Icons.send, color: btnColor, size: 32),
                   onPressed: () {
                     final text = _msgController.text.trim();
                     if (text.isNotEmpty) {
                       _chatController.sendMessage(text, widget.otherUserId);
                       _msgController.clear();
-                      _chatController.markMessagesAsSeen(widget.otherUserId);
                     }
                   },
                 ),
@@ -110,28 +152,116 @@ class _ChatPageState extends State<ChatPage> {
 }
 
 class ChatWidget extends StatelessWidget {
-  const ChatWidget({super.key, required this.isMe, required this.msg});
+  const ChatWidget({
+    super.key,
+    required this.isMe,
+    required this.msg,
+    required this.chatController,
+  });
 
   final bool isMe;
   final Message msg;
+  final ChatController chatController;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onLongPress: () {
+        chatController.msgSelectionMode.value = true;
+        chatController.selectedMessageIds.add(msg.id);
+      },
+      onTap: () {
+        if (chatController.msgSelectionMode.value) {
+          chatController.selectedMessageIds.contains(msg.id)
+              ? chatController.selectedMessageIds.remove(msg.id)
+              : chatController.selectedMessageIds.add(msg.id);
+          if (chatController.selectedMessageIds.isEmpty) {
+            chatController.msgSelectionMode.value = false;
+          }
+        }
+      },
+      child: Obx(() {
+        final isSelected = chatController.selectedMessageIds.contains(msg.id);
+        return Container(
+          color: isSelected ? btnColor.withValues(alpha: 0.2) : null,
+          alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.75,
+            ),
+            decoration: BoxDecoration(
+              color: isMe ? const Color(0xFFDCF8C6) : Colors.grey.shade200,
+              borderRadius: BorderRadius.only(
+                topLeft: const Radius.circular(16),
+                topRight: const Radius.circular(16),
+                bottomLeft: Radius.circular(isMe ? 16 : 0),
+                bottomRight: Radius.circular(isMe ? 0 : 16),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 3,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment:
+                  isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              children: [
+                Text(msg.text, style: const TextStyle(fontSize: 16)),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _formatTime(msg.timestamp),
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    ),
+                    if (isMe) ...[
+                      const SizedBox(width: 4),
+                      Icon(
+                        msg.seen ? Icons.done_all : Icons.done,
+                        size: 16,
+                        color: msg.seen ? Colors.blue : Colors.grey,
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
+  String _formatTime(DateTime time) {
+    final hour = time.hour.toString().padLeft(2, '0');
+    final minute = time.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
+  }
+}
+
+class TypingWidget extends StatelessWidget {
+  const TypingWidget({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.75,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: isMe ? const Color(0xFFDCF8C6) : Colors.white,
+          color: Colors.grey.shade200,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
-            bottomLeft: Radius.circular(isMe ? 16 : 0),
-            bottomRight: Radius.circular(isMe ? 0 : 16),
+            bottomLeft: Radius.circular(0),
+            bottomRight: Radius.circular(16),
           ),
           boxShadow: [
             BoxShadow(
@@ -141,40 +271,11 @@ class ChatWidget extends StatelessWidget {
             ),
           ],
         ),
-        child: Column(
-          crossAxisAlignment:
-              isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-          children: [
-            Text(msg.text, style: const TextStyle(fontSize: 16)),
-            const SizedBox(height: 4),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  _formatTime(msg.timestamp),
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                ),
-                if (isMe) ...[
-                  const SizedBox(width: 4),
-                  Icon(
-                    msg.seen
-                        ? Icons.done_all
-                        : Icons.done, // double tick for seen
-                    size: 16,
-                    color: msg.seen ? Colors.blue : Colors.grey,
-                  ),
-                ],
-              ],
-            ),
-          ],
+        child: Text(
+          "Typing...",
+          style: const TextStyle(fontSize: 14, fontStyle: FontStyle.italic),
         ),
       ),
     );
-  }
-
-  String _formatTime(DateTime time) {
-    final hour = time.hour.toString().padLeft(2, '0');
-    final minute = time.minute.toString().padLeft(2, '0');
-    return '$hour:$minute';
   }
 }

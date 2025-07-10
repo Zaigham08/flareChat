@@ -9,7 +9,10 @@ import '../res/constants.dart';
 
 class Utils {
   static void fieldFocusChange(
-      BuildContext context, FocusNode current, FocusNode nextFocus) {
+    BuildContext context,
+    FocusNode current,
+    FocusNode nextFocus,
+  ) {
     current.unfocus();
     FocusScope.of(context).requestFocus(nextFocus);
   }
@@ -46,10 +49,7 @@ class Utils {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const MySpinKitFadingCircle(
-                  size: 60,
-                  color: btnColor,
-                ),
+                const MySpinKitFadingCircle(size: 60, color: btnColor),
                 8.ph,
                 Text(
                   message,
@@ -73,10 +73,7 @@ class Utils {
       PopScope(
         canPop: canPop,
         child: const Center(
-          child: MySpinKitFadingCircle(
-            size: 60,
-            color: btnColor,
-          ),
+          child: MySpinKitFadingCircle(size: 60, color: btnColor),
         ),
       ),
     );
@@ -137,10 +134,13 @@ class Utils {
                     DialogTextButton(
                       text: btnText,
                       color: btnColor,
-                      onTap: onTap,
+                      onTap: () {
+                        Get.back();
+                        onTap();
+                      },
                     ),
                   ],
-                )
+                ),
               ],
             ),
           ),
@@ -148,7 +148,6 @@ class Utils {
       ),
     );
   }
-
 }
 
 class DialogTextButton extends StatelessWidget {

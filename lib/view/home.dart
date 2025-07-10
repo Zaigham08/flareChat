@@ -8,6 +8,7 @@ import 'package:get/get.dart';
 import '../res/widgets/general widgets/my_text.dart';
 import '../utils/utils.dart';
 import '../view_models/controllers/auth_controller.dart';
+import '../view_models/controllers/chat_controller.dart';
 import 'all_users_page.dart';
 import 'chat_page.dart';
 
@@ -18,22 +19,47 @@ class HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final String currentUserId = FirebaseAuth.instance.currentUser!.uid;
     final authController = Get.find<AuthController>();
+    final chatController = Get.put(ChatController());
 
     return Scaffold(
       appBar: AppBar(
         title: const MyText("FlareChat", color: whiteColor),
         actions: [
-          IconButton(
-            onPressed: () {
-              Utils.showConfirmationDialog(
-                title: "Are you sure?",
-                text: logoutString,
-                btnText: "Logout",
-                onTap: authController.logout,
-              );
-            },
-            icon: const Icon(Icons.logout, color: whiteColor),
-          ),
+          Obx(() {
+            return chatController.chatSelectionMode.value
+                ? IconButton(
+                  icon: const Icon(
+                    Icons.delete_forever_outlined,
+                    color: whiteColor,
+                  ),
+                  onPressed: () {
+                    final selectedChatLength =
+                        chatController.selectedChatIds.length;
+                    Utils.showConfirmationDialog(
+                      title: "Are you sure?",
+                      text:
+                          selectedChatLength == 1
+                              ? "Delete this chat?"
+                              : "Delete $selectedChatLength chats?",
+                      btnText: "Delete",
+                      onTap: () async {
+                        await chatController.deleteChat();
+                      },
+                    );
+                  },
+                )
+                : IconButton(
+                  onPressed: () {
+                    Utils.showConfirmationDialog(
+                      title: "Are you sure?",
+                      text: logoutString,
+                      btnText: "Logout",
+                      onTap: authController.logout,
+                    );
+                  },
+                  icon: const Icon(Icons.logout, color: whiteColor),
+                );
+          }),
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -95,29 +121,86 @@ class HomePage extends StatelessWidget {
                   chat['typingStatus'] as Map<String, dynamic>? ?? {};
               final isOtherTyping = typingStatus[otherUserId] == true;
 
-              return ListTile(
-                leading: const Icon(CupertinoIcons.profile_circled, size: 46),
-                title: Text(displayName),
-                subtitle: Text(
-                  isOtherTyping ? "Typing..." : lastMsg,
-                  style: TextStyle(
-                    fontStyle:
-                        isOtherTyping ? FontStyle.italic : FontStyle.normal,
-                    color: isOtherTyping ? Colors.green : null,
-                  ),
+              return Obx(
+                () => buildChatWidget(
+                  displayName,
+                  isOtherTyping,
+                  lastMsg,
+                  lastTimestamp,
+                  chatController,
+                  chat,
+                  otherUserId,
+                  otherUserName,
                 ),
-                trailing: Text(formatTimeAgo(lastTimestamp)),
-                onTap: () {
-                  Get.to(
-                    () => ChatPage(
-                      otherUserId: otherUserId,
-                      otherUserName: otherUserName,
-                    ),
-                  );
-                },
               );
             },
           );
+        },
+      ),
+    );
+  }
+
+  Container buildChatWidget(
+    displayName,
+    bool isOtherTyping,
+    lastMsg,
+    DateTime lastTimestamp,
+    ChatController chatController,
+    QueryDocumentSnapshot<Object?> chat,
+    String otherUserId,
+    otherUserName,
+  ) {
+    final isSelected = chatController.selectedChatIds.contains(chat.id);
+    return Container(
+      color: isSelected ? btnColor.withValues(alpha: 0.2) : null,
+      child: ListTile(
+        leading: Stack(
+          children: [
+            const Icon(CupertinoIcons.profile_circled, size: 45),
+            if (isSelected)
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: Container(
+                  padding: EdgeInsets.all(3),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: btnColor,
+                  ),
+                  child: Icon(Icons.done, size: 18, color: blackColor),
+                ),
+              ),
+          ],
+        ),
+        title: Text(displayName),
+        subtitle: Text(
+          isOtherTyping ? "Typing..." : lastMsg,
+          style: TextStyle(
+            fontStyle: isOtherTyping ? FontStyle.italic : FontStyle.normal,
+            color: isOtherTyping ? Colors.green : null,
+          ),
+        ),
+        trailing: Text(formatTimeAgo(lastTimestamp)),
+        onTap: () {
+          if (chatController.chatSelectionMode.value) {
+            chatController.selectedChatIds.contains(chat.id)
+                ? chatController.selectedChatIds.remove(chat.id)
+                : chatController.selectedChatIds.add(chat.id);
+            if (chatController.selectedChatIds.isEmpty) {
+              chatController.chatSelectionMode.value = false;
+            }
+          } else {
+            Get.to(
+              () => ChatPage(
+                otherUserId: otherUserId,
+                otherUserName: otherUserName,
+              ),
+            );
+          }
+        },
+        onLongPress: () {
+          chatController.chatSelectionMode.value = true;
+          chatController.selectedChatIds.add(chat.id);
         },
       ),
     );

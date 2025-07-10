@@ -38,8 +38,11 @@ class AllUsersPage extends StatelessWidget {
               return ListTile(
                 leading: const Icon(CupertinoIcons.person_circle, size: 46),
                 title: Text(user['name'] + (isSelf ? " (You)" : "")),
-                subtitle: Text(isSelf ? "Tap to chat with yourself" : ""),
+                subtitle: Text(
+                  isSelf ? "Tap to chat with yourself" : "Tap to chat",
+                ),
                 onTap: () {
+                  Get.back();
                   Get.to(
                     () => ChatPage(
                       otherUserId: user.id,
