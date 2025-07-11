@@ -132,6 +132,13 @@ class ChatController extends GetxController {
 
   void listenToTypingStatus(String otherUserId) {
     final chatId = getChatId(otherUserId);
+
+    // If chatting with self, never show "typing..."
+    if (currentUserId == otherUserId) {
+      isOtherTyping.value = false;
+      return;
+    }
+
     FirebaseFirestore.instance
         .collection('chat_summaries')
         .doc(chatId)

@@ -41,12 +41,12 @@ class _LoginPageState extends State<LoginPage> {
     final authController = Get.find<AuthController>();
     return Scaffold(
       appBar: myAppBar("login"),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(kDefaultPadding),
+      body: Padding(
+        padding: const EdgeInsets.all(kDefaultPadding),
+        child: Center(
           child: Column(
             children: [
-              30.ph,
+              20.ph,
               Form(
                 key: formKey,
                 child: Column(
@@ -76,61 +76,57 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     6.ph,
                     Obx(
-                          () =>
-                          MyTextInputField(
-                            hintText: "Enter password",
-                            width: 390,
-                            controller: _passwordController,
-                            focusNode: _passwordFocusNode,
-                            hidePassword: authController.hidePassword.value,
-                            textCapitalization: TextCapitalization.none,
-                            maxLines: 1,
-                            validator: (value) {
-                              if (value!.isEmpty) {
-                                return "Required*";
-                              }
-                              return null;
-                            },
-                            onFieldSubmitted: (_) {
-                              if (formKey.currentState!.validate()) {
-                                authController.login(
-                                  email: _emailController.text.trim()
-                                      .toString(),
-                                  password:
+                      () => MyTextInputField(
+                        hintText: "Enter password",
+                        width: 390,
+                        controller: _passwordController,
+                        focusNode: _passwordFocusNode,
+                        hidePassword: authController.hidePassword.value,
+                        textCapitalization: TextCapitalization.none,
+                        maxLines: 1,
+                        validator: (value) {
+                          if (value!.isEmpty) {
+                            return "Required*";
+                          }
+                          return null;
+                        },
+                        onFieldSubmitted: (_) {
+                          if (formKey.currentState!.validate()) {
+                            authController.login(
+                              email: _emailController.text.trim().toString(),
+                              password:
                                   _passwordController.text.trim().toString(),
-                                );
-                              }
-                            },
-                            widget: GestureDetector(
-                              onTap: () => authController.toggleHidePassword(),
-                              child: Icon(
-                                CupertinoIcons.eye_slash,
-                                color: dimColor,
-                                size: 20,
-                              ),
-                            ),
+                            );
+                          }
+                        },
+                        widget: GestureDetector(
+                          onTap: () => authController.toggleHidePassword(),
+                          child: Icon(
+                            CupertinoIcons.eye_slash,
+                            color: dimColor,
+                            size: 20,
                           ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ),
               25.ph,
               Obx(
-                    () =>
-                    MyTextButton(
-                      text: "Login",
-                      width: 390,
-                      isLoading: authController.isLoading.value,
-                      onPressed: () {
-                        if (formKey.currentState!.validate()) {
-                          authController.login(
-                            email: _emailController.text.trim().toString(),
-                            password: _passwordController.text.trim()
-                                .toString(),
-                          );
-                        }
-                      },
-                    ),
+                () => MyTextButton(
+                  text: "Login",
+                  width: 390,
+                  isLoading: authController.isLoading.value,
+                  onPressed: () {
+                    if (formKey.currentState!.validate()) {
+                      authController.login(
+                        email: _emailController.text.trim().toString(),
+                        password: _passwordController.text.trim().toString(),
+                      );
+                    }
+                  },
+                ),
               ),
               40.ph,
               MyRichTextsLink(
@@ -138,7 +134,7 @@ class _LoginPageState extends State<LoginPage> {
                 text2: "Register",
                 onPressed: () {
                   Get.to(
-                        () => const RegisterPage(),
+                    () => const RegisterPage(),
                     transition: Transition.downToUp,
                     duration: const Duration(milliseconds: 800),
                   );

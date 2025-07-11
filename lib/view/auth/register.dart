@@ -44,12 +44,12 @@ class _RegisterPageState extends State<RegisterPage> {
     final authController = Get.find<AuthController>();
     return Scaffold(
       appBar: myAppBar("Register"),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(kDefaultPadding),
+      body: Padding(
+        padding: const EdgeInsets.all(kDefaultPadding),
+        child: Center(
           child: Column(
             children: [
-              30.ph,
+              20.ph,
               Form(
                 key: formKey,
                 child: Column(

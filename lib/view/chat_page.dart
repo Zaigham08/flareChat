@@ -1,5 +1,6 @@
 import 'package:flare_chat/res/constants.dart';
 import 'package:flare_chat/res/widgets/input%20field%20components/my_text_input_field.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -34,118 +35,135 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: MyText(widget.otherUserName, color: whiteColor),
-        actions: [
-          Obx(() {
-            return _chatController.msgSelectionMode.value
-                ? IconButton(
-                  icon: const Icon(
-                    Icons.delete_forever_outlined,
-                    color: whiteColor,
-                  ),
-                  onPressed: () {
-                    final selectedMsgLength =
-                        _chatController.selectedMessageIds.length;
-                    Utils.showConfirmationDialog(
-                      title: "Are you sure?",
-                      text:
-                          selectedMsgLength == 1
-                              ? "Delete this message?"
-                              : "Delete $selectedMsgLength messages?",
-                      btnText: "Delete",
-                      onTap: () async {
-                        await _chatController.deleteMessages(
-                          widget.otherUserId,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, Object? result) {
+        if (didPop) {
+          return;
+        }
+        if (_chatController.msgSelectionMode.value) {
+          // Exit selection mode instead of popping the page
+          _chatController.msgSelectionMode.value = false;
+          _chatController.selectedMessageIds.clear();
+        } else {
+          Get.back();
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: MyText(widget.otherUserName, color: whiteColor),
+          actions: [
+            Obx(() {
+              return _chatController.msgSelectionMode.value
+                  ? IconButton(
+                    icon: const Icon(
+                      CupertinoIcons.delete,
+                      color: whiteColor,
+                      size: 22,
+                    ),
+                    onPressed: () {
+                      final selectedMsgLength =
+                          _chatController.selectedMessageIds.length;
+                      Utils.showConfirmationDialog(
+                        title: "Are you sure?",
+                        text:
+                            selectedMsgLength == 1
+                                ? "Delete this message?"
+                                : "Delete $selectedMsgLength messages?",
+                        btnText: "Delete",
+                        onTap: () async {
+                          await _chatController.deleteMessages(
+                            widget.otherUserId,
+                          );
+                        },
+                      );
+                    },
+                  )
+                  : SizedBox.shrink();
+            }),
+          ],
+        ),
+        body: Column(
+          children: [
+            Expanded(
+              child: StreamBuilder<List<Message>>(
+                stream: _chatController.getMessages(widget.otherUserId),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return const Center(
+                      child: CircularProgressIndicator(color: btnColor),
+                    );
+                  }
+                  final messages = snapshot.data!;
+
+                  Future.delayed(Duration(milliseconds: 200), () {
+                    _chatController.markMessagesAsSeen(widget.otherUserId);
+                  });
+
+                  return ListView.builder(
+                    reverse: true,
+                    itemCount: messages.length,
+                    itemBuilder: (context, index) {
+                      final msg = messages[index];
+                      final isMe =
+                          msg.senderId == _chatController.currentUserId;
+
+                      return ChatWidget(
+                        isMe: isMe,
+                        msg: msg,
+                        chatController: _chatController,
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+            Obx(() {
+              if (_chatController.isOtherTyping.value) {
+                return TypingWidget();
+              } else {
+                return SizedBox.shrink();
+              }
+            }),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: MyTextInputField(
+                      controller: _msgController,
+                      hintText: "Type a message...",
+                      textCapitalization: TextCapitalization.sentences,
+                      onFieldSubmitted: (_) {
+                        final text = _msgController.text.trim();
+                        if (text.isNotEmpty) {
+                          _chatController.sendMessage(text, widget.otherUserId);
+                          _msgController.clear();
+                        }
+                      },
+                      onChanged: (value) {
+                        _chatController.setTypingStatus(
+                          otherUserId: widget.otherUserId,
+                          isTyping: value.trim().isNotEmpty,
                         );
                       },
-                    );
-                  },
-                )
-                : SizedBox.shrink();
-          }),
-        ],
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: StreamBuilder<List<Message>>(
-              stream: _chatController.getMessages(widget.otherUserId),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: btnColor),
-                  );
-                }
-                final messages = snapshot.data!;
-
-                Future.delayed(Duration(milliseconds: 500), () {
-                  _chatController.markMessagesAsSeen(widget.otherUserId);
-                });
-
-                return ListView.builder(
-                  reverse: true,
-                  itemCount: messages.length,
-                  itemBuilder: (context, index) {
-                    final msg = messages[index];
-                    final isMe = msg.senderId == _chatController.currentUserId;
-
-                    return ChatWidget(
-                      isMe: isMe,
-                      msg: msg,
-                      chatController: _chatController,
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-          Obx(() {
-            if (_chatController.isOtherTyping.value) {
-              return TypingWidget();
-            } else {
-              return SizedBox.shrink();
-            }
-          }),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: MyTextInputField(
-                    controller: _msgController,
-                    hintText: "Type a message...",
-                    textCapitalization: TextCapitalization.sentences,
-                    onFieldSubmitted: (_) {
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.send, color: btnColor, size: 32),
+                    onPressed: () {
                       final text = _msgController.text.trim();
                       if (text.isNotEmpty) {
                         _chatController.sendMessage(text, widget.otherUserId);
                         _msgController.clear();
                       }
                     },
-                    onChanged: (value) {
-                      _chatController.setTypingStatus(
-                        otherUserId: widget.otherUserId,
-                        isTyping: value.trim().isNotEmpty,
-                      );
-                    },
                   ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.send, color: btnColor, size: 32),
-                  onPressed: () {
-                    final text = _msgController.text.trim();
-                    if (text.isNotEmpty) {
-                      _chatController.sendMessage(text, widget.otherUserId);
-                      _msgController.clear();
-                    }
-                  },
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -183,7 +201,7 @@ class ChatWidget extends StatelessWidget {
       child: Obx(() {
         final isSelected = chatController.selectedMessageIds.contains(msg.id);
         return Container(
-          color: isSelected ? btnColor.withValues(alpha: 0.2) : null,
+          color: isSelected ? btnColor.withValues(alpha: 0.3) : null,
           alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
